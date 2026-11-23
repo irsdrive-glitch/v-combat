@@ -4,6 +4,7 @@ const VC = (() => {
   const store = { get(k, d){ try{ const v = localStorage.getItem("vc_" + k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }, set(k, v){ try{ localStorage.setItem("vc_" + k, JSON.stringify(v)); }catch(e){} } };
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const LV = ["Kurang", "Cukup", "Baik", "Sangat baik"];
+  
   // thr = batas tiga tingkat (angka contoh, BUKAN norma resmi)
   const TES = [
     { id:"sprint", nama:"Sprint 20 m", sat:"detik", arah:"kecil", kel:"Kecepatan", thr:[4.6, 4.2, 3.9] },
@@ -15,18 +16,33 @@ const VC = (() => {
     { id:"tendang", nama:"Tendangan 10 detik (aplikasi 1)", sat:"kali", arah:"besar", kel:"Teknik", thr:[8, 11, 14] }
   ];
   const KAT = ["Tanding", "Tunggal", "Regu", "Ganda"];
+  
+  // Data atlet dengan tambahan properti 'foto' untuk mendukung foto statis dari folder aset/foto/
   const ATLET = Array.from({ length:12 }, (_, i) => {
     const tinggi = 125 + Math.round(rnd() * 25);
-    return { id:"A" + String(i + 1).padStart(2, "0"), nama:"Atlet " + String(i + 1).padStart(2, "0"), jk:i % 2 ? "L" : "P", usia:8 + Math.floor(rnd() * 5),
-      kat:[KAT[i % 4]].concat(i % 5 === 0 ? ["Regu"] : []), izin:i % 4 !== 3, tinggi, berat:24 + Math.round(rnd() * 14),
-      ukur:i % 6 === 5 ? "Agu 2026" : "Nov 2026", riw:[0, 1, 2, 3, 4].map(k => +(tinggi - (4 - k) * 0.8).toFixed(1)) };
+    const idStr = "A" + String(i + 1).padStart(2, "0");
+    return { 
+      id: idStr, 
+      nama:"Atlet " + String(i + 1).padStart(2, "0"), 
+      jk:i % 2 ? "L" : "P", 
+      usia:8 + Math.floor(rnd() * 5),
+      kat:[KAT[i % 4]].concat(i % 5 === 0 ? ["Regu"] : []), 
+      izin:i % 4 !== 3, 
+      tinggi, 
+      berat:24 + Math.round(rnd() * 14),
+      ukur:i % 6 === 5 ? "Agu 2026" : "Nov 2026", 
+      riw:[0, 1, 2, 3, 4].map(k => +(tinggi - (4 - k) * 0.8).toFixed(1)),
+      foto: i === 0 ? "aset/foto/atlet01.jpg" : "" // Contoh menyematkan foto untuk Atlet 01
+    };
   });
+
   const HASIL0 = {};
   ATLET.forEach(a => { HASIL0[a.id] = {}; TES.forEach(t => {
     if(a.id === "A05" && t.id === "lompat") return;
     const [a1, , a3] = t.thr, lo = t.arah === "besar" ? a1 * 0.8 : a3 * 0.9, hi = t.arah === "besar" ? a3 * 1.15 : a1 * 1.1;
     const v = lo + rnd() * (hi - lo); HASIL0[a.id][t.id] = t.sat === "detik" ? +v.toFixed(1) : Math.round(v);
   }); });
+  
   let bench = store.get("bench", null) || Object.fromEntries(TES.map(t => [t.id, { arah:t.arah, sat:t.sat, thr:t.thr.slice() }]));
   let hasil = store.get("hasil", null) || HASIL0;
   const level = (v, b) => {
@@ -72,6 +88,14 @@ const VC = (() => {
   const kpi = (l, v, s = "") => '<div class="card kpi"><small>' + l + '</small><b>' + v + '</b> <span class="muted sm">' + s + '</span></div>';
   const atletById = id => ATLET.find(a => a.id === id) || ATLET[6];
 
+  // ---------- helper render avatar (mendukung foto atau fallback inisial teks) ----------
+  function renderAvatar(a, customClass = "avatar") {
+    if (a.foto) {
+      return '<div class="' + customClass + '" style="overflow:hidden; padding:0;"><img src="' + a.foto + '" alt="' + a.nama + '" style="width:100%; height:100%; object-fit:cover;"></div>';
+    }
+    return '<div class="' + customClass + '">' + a.id + '</div>';
+  }
+
   // ---------- halaman ----------
   const PAGES = {};
   PAGES.beranda = el => {
@@ -89,15 +113,20 @@ const VC = (() => {
     };
     draw();
   };
+
   PAGES.atlet = el => {
     el.innerHTML = '<div class="card"><div class="row" style="margin-bottom:10px"><input id="q" placeholder="Cari nama atau ID"><select id="fk"><option value="">Semua kategori</option>' + KAT.map(k => '<option>' + k + '</option>').join("") + '</select><button class="pri" id="add" title="Belum aktif di prototipe">+ Atlet</button></div><div class="scroll"><table id="t"></table></div></div>';
     const draw = () => {
       const q = $("#q").value.toLowerCase(), k = $("#fk").value;
-      $("#t").innerHTML = '<tr><th>ID</th><th>Nama</th><th>Usia</th><th>JK</th><th>Kategori</th><th>Tinggi</th><th>Berat</th><th>Izin wali</th></tr>' +
-        ATLET.filter(a => (!q || (a.nama + a.id).toLowerCase().includes(q)) && (!k || a.kat.includes(k))).map(a => '<tr><td>' + a.id + '</td><td><a href="profil.html?id=' + a.id + '">' + a.nama + '</a></td><td>' + a.usia + '</td><td>' + a.jk + '</td><td>' + a.kat.join(", ") + '</td><td>' + a.tinggi + ' cm</td><td>' + a.berat + ' kg</td><td>' + (a.izin ? "lengkap" : '<span style="color:#ff7a3d">belum</span>') + '</td></tr>').join("");
+      $("#t").innerHTML = '<tr><th>Foto</th><th>ID</th><th>Nama</th><th>Usia</th><th>JK</th><th>Kategori</th><th>Tinggi</th><th>Berat</th><th>Izin wali</th></tr>' +
+        ATLET.filter(a => (!q || (a.nama + a.id).toLowerCase().includes(q)) && (!k || a.kat.includes(k))).map(a => {
+          const thumbHtml = a.foto ? '<img src="' + a.foto + '" style="width:32px; height:32px; border-radius:50%; object-fit:cover;">' : '<span class="muted">-</span>';
+          return '<tr><td>' + thumbHtml + '</td><td>' + a.id + '</td><td><a href="profil.html?id=' + a.id + '">' + a.nama + '</a></td><td>' + a.usia + '</td><td>' + a.jk + '</td><td>' + a.kat.join(", ") + '</td><td>' + a.tinggi + ' cm</td><td>' + a.berat + ' kg</td><td>' + (a.izin ? "lengkap" : '<span style="color:#ff7a3d">belum</span>') + '</td></tr>';
+        }).join("");
     };
     $("#q").oninput = $("#fk").onchange = draw; $("#add").onclick = () => alert("Tambah atlet belum aktif di prototipe."); draw();
   };
+
   function ringkasan(a){
     const T6 = TES.slice(0, 6), vals = T6.map(t => skor(a.id, t));
     const imt = (a.berat / Math.pow(a.tinggi / 100, 2)).toFixed(1), seed2 = a.usia + a.tinggi;
@@ -106,6 +135,7 @@ const VC = (() => {
       '<div class="card"><h2>Latihan tendangan <span class="muted sm">aplikasi 1</span></h2><table><tr><td class="muted">Jumlah</td><td>' + (30 + seed2 % 15) + '</td></tr><tr><td class="muted">Kec. tercepat</td><td>' + (36 + seed2 % 10) + ' km/j</td></tr><tr><td class="muted">Tinggi tertinggi</td><td>+' + (15 + seed2 % 12) + ' cm</td></tr><tr><td class="muted">Kiri / kanan</td><td>' + (16 + seed2 % 5) + ' / ' + (17 + seed2 % 6) + '</td></tr></table></div>' +
       '<div class="card"><h2>Izin dan catatan</h2><ul class="list"><li>' + (a.izin ? "Persetujuan wali: lengkap" : '<span style="color:#ff7a3d">Persetujuan wali: belum lengkap</span>') + '</li><li>Data antropometri: ' + a.ukur + '</li><li class="muted">Catatan pelatih: (contoh) fokus tendangan kiri</li></ul></div></div>';
   }
+
   PAGES.profil = el => {
     const a = atletById(new URLSearchParams(location.search).get("id")), role = store.get("role", "pelatih");
     let tab = "Ringkasan", riw = a.riw.slice();
@@ -118,15 +148,16 @@ const VC = (() => {
       "Pertandingan": () => '<div class="card"><h2>Riwayat pertandingan</h2><p class="muted">Data contoh. Nanti terisi dari aplikasi 2: 12 Nov 2026, Tanding, ronde 2 dari 3, tendangan 18, pukulan 22, jatuhan 1.</p></div>'
     };
     const draw = () => {
-      el.innerHTML = '<div class="card row" style="gap:14px"><div class="avatar">' + a.id + '</div><div style="flex:1;min-width:200px"><b style="font-size:19px">' + a.nama + '</b><div class="muted">' + (a.jk === "P" ? "Putri" : "Putra") + ' · ' + a.usia + ' tahun · ' + a.kat.join(", ") + ' · Usia dini</div></div><div class="row noprint"><a class="btn pri" href="latihan.html">Latihan kamera</a><a class="btn" href="latihan.html">Analisis video</a></div></div>' +
+      el.innerHTML = '<div class="card row" style="gap:14px">' + renderAvatar(a) + '<div style="flex:1;min-width:200px"><b style="font-size:19px">' + a.nama + '</b><div class="muted">' + (a.jk === "P" ? "Putri" : "Putra") + ' · ' + a.usia + ' tahun · ' + a.kat.join(", ") + ' · Usia dini</div></div><div class="row noprint"><a class="btn pri" href="latihan.html">Latihan kamera</a><a class="btn" href="latihan.html">Analisis video</a></div></div>' +
         '<div class="tabs noprint">' + tabs.map(t => '<button class="' + (t === tab ? "on" : "") + '" data-t="' + t + '">' + t + '</button>').join("") + '</div>' + body[tab]();
       el.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { tab = b.dataset.t; draw(); });
       const nb = $("#nb"); if(nb) nb.onclick = () => { const v = parseFloat($("#nv").value); if(v > 50){ riw.push(v); draw(); } };
     };
     draw();
   };
+
   PAGES["tes-fisik"] = el => {
-    let tab = "Input tes", tesId = "sprint", kat = "";
+    let tab = "Input tes", tesId = "sprint";
     const draw = () => {
       const tabs = '<div class="tabs">' + ["Input tes", "Hasil", "Benchmark"].map(t => '<button class="' + (t === tab ? "on" : "") + '" data-t="' + t + '">' + t + '</button>').join("") + '</div>';
       let body = "";
@@ -148,59 +179,22 @@ const VC = (() => {
     };
     draw();
   };
+
   const note = (t, links) => '<div class="card"><p>' + t + '</p><div class="row">' + links + '</div></div>';
   PAGES.latihan = el => { el.innerHTML = note("Halaman ini nanti membuka aplikasi 1 untuk atlet yang dipilih: nama dan tinggi badan terisi otomatis, hasil tersimpan ke profil. Di prototipe, tombol membuka aplikasi 1 yang sudah ada, tanpa terhubung ke data atlet.", '<a class="btn pri" href="../index.html">Latihan kamera</a><a class="btn" href="../index.html">Analisis dari video</a>'); };
   PAGES.pertandingan = el => { el.innerHTML = note("Halaman ini nanti menyimpan pertandingan, memilih atlet merah dan biru dari database atau atlet tamu, dan menyimpan hasil per ronde. Di prototipe, tombol membuka aplikasi 2 yang sudah ada.", '<a class="btn pri" href="../analisis.html">Buka analisis pertandingan</a>'); };
+  
   PAGES.laporan = el => {
     el.innerHTML = '<div class="card noprint row"><select id="la">' + ATLET.map(a => '<option value="' + a.id + '">' + a.nama + '</option>').join("") + '</select><button class="pri" onclick="print()">Cetak</button></div><div id="rp"></div>';
     const draw = () => { const a = atletById($("#la").value); $("#rp").innerHTML = '<div class="card"><b style="font-size:18px">Laporan ' + a.nama + '</b><div class="muted">' + a.usia + ' tahun · ' + a.kat.join(", ") + '</div></div>' + ringkasan(a); };
     $("#la").onchange = draw; draw();
   };
+
   PAGES.pengaturan = el => {
     el.innerHTML = '<div class="g2"><div class="card"><h2>Pengguna dan peran</h2><table><tr><th>Nama</th><th>Peran</th><th>Status</th></tr><tr><td>Pelatih A</td><td>Pelatih</td><td>aktif</td></tr><tr><td>Analis B</td><td>Analis</td><td>aktif</td></tr><tr><td>Wali Atlet 07</td><td>Atlet / wali</td><td>diundang</td></tr></table><button style="margin-top:10px" onclick="alert(\'Undangan belum aktif di prototipe.\')">+ Undang pengguna</button></div><div class="card"><h2>Kategori</h2><ul class="list">' + KAT.map(k => '<li>' + k + '</li>').join("") + '</ul><p class="muted sm">Atlet bisa berada di lebih dari satu kategori.</p></div></div>';
   };
+
   return { page, level, radar, store, TES, ATLET };
 })();
+
 if(typeof module !== "undefined") module.exports = VC;
-
-// Contoh array data atlet di dalam vcombat.js
-const daftarAtlet = [
-  {
-    id: "A001",
-    nama: "Budi Santoso",
-    cabang: "Pencak Silat",
-    kategori: "Dewasa Putra",
-    foto: "aset/foto/budi.jpg" // Path foto statis
-  },
-  {
-    id: "A002",
-    nama: "Siti Rahma",
-    cabang: "Karate",
-    kategori: "Dewasa Putri",
-    foto: "aset/foto/siti.jpg" // Path foto statis
-  }
-];
-
-// Contoh fungsi JavaScript untuk merender kartu profil atau daftar atlet
-function renderAtlet() {
-  const container = document.getElementById("container-atlet");
-  container.innerHTML = ""; // Bersihkan kontainer
-
-  daftarAtlet.forEach(atlet => {
-    // Jika foto kosong, kita bisa fallback ke inisial nama atau gambar default
-    const fotoSrc = atlet.foto ? atlet.foto : "aset/foto/default.jpg";
-
-    const htmlCard = `
-      <div class="card-atlet">
-        <div class="avatar-container">
-          <img src="${fotoSrc}" alt="Foto ${atlet.nama}" class="atlet-avatar">
-        </div>
-        <div class="atlet-info">
-          <h3>${atlet.nama}</h3>
-          <p>${atlet.cabang} - ${atlet.kategori}</p>
-        </div>
-      </div>
-    `;
-    container.innerHTML += htmlCard;
-  });
-}
