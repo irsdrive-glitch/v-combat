@@ -44,3 +44,30 @@ td input{width:90px;padding:6px 8px}
 .login input,.login select{width:100%}
 @media(max-width:800px){.app{grid-template-columns:minmax(0,1fr)}nav.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap}.me{margin-top:0}}
 @media print{nav.side,.banner,.noprint{display:none!important}.app{display:block}body{background:#fff;color:#000}.card{background:#fff;border:1px solid #ccc}}
+
+/* Kontainer pembungkus avatar */
+.avatar-container {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 10px auto;
+}
+
+/* Styling foto profil berbentuk bulat */
+.atlet-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;          /* Membuat gambar jadi bulat */
+  object-fit: cover;           /* Memastikan gambar mengisi area tanpa gepeng */
+  border: 2px solid #3b82f6;   /* Garis tepi border (opsional, warna biru tema) */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); /* Efek bayangan halus */
+}
+
+/* Tambahan styling kartu atlet opsional */
+.card-atlet {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  margin-bottom: 12px;
+}
