@@ -1,11 +1,10 @@
-// V-Combat prototipe v0.1: semua data contoh, tanpa database. Perubahan disimpan di localStorage browser ini saja.
+// V-Combat prototipe v0.2: dengan fitur perbandingan atlet ala Football Manager
 const VC = (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const store = { get(k, d){ try{ const v = localStorage.getItem("vc_" + k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }, set(k, v){ try{ localStorage.setItem("vc_" + k, JSON.stringify(v)); }catch(e){} } };
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const LV = ["Kurang", "Cukup", "Baik", "Sangat baik"];
   
-  // thr = batas tiga tingkat (angka contoh, BUKAN norma resmi)
   const TES = [
     { id:"sprint", nama:"Sprint 20 m", sat:"detik", arah:"kecil", kel:"Kecepatan", thr:[4.6, 4.2, 3.9] },
     { id:"lompat", nama:"Lompat tegak", sat:"cm", arah:"besar", kel:"Daya ledak", thr:[18, 24, 30] },
@@ -17,7 +16,6 @@ const VC = (() => {
   ];
   const KAT = ["Tanding", "Tunggal", "Regu", "Ganda"];
   
-  // Data atlet dengan tambahan properti 'foto' untuk mendukung foto statis dari folder aset/foto/
   const ATLET = Array.from({ length:12 }, (_, i) => {
     const tinggi = 125 + Math.round(rnd() * 25);
     const idStr = "A" + String(i + 1).padStart(2, "0");
@@ -32,7 +30,7 @@ const VC = (() => {
       berat:24 + Math.round(rnd() * 14),
       ukur:i % 6 === 5 ? "Agu 2026" : "Nov 2026", 
       riw:[0, 1, 2, 3, 4].map(k => +(tinggi - (4 - k) * 0.8).toFixed(1)),
-      foto: i === 0 ? "aset/foto/atlet01.jpg" : "" // Contoh menyematkan foto untuk Atlet 01
+      foto: i === 0 ? "aset/foto/atlet01.jpg" : "" 
     };
   });
 
@@ -63,6 +61,22 @@ const VC = (() => {
     const lab = labels.map((t, i) => { const x = c + Math.cos(ang(i)) * (R + 14), y = c + Math.sin(ang(i)) * (R + 14); return '<text x="' + x.toFixed(1) + '" y="' + (y + 4).toFixed(1) + '" font-size="11" fill="#8fa0c0" text-anchor="' + (Math.abs(x - c) < 4 ? "middle" : x > c ? "start" : "end") + '">' + t + '</text>'; }).join("");
     return '<svg viewBox="0 0 ' + S + ' ' + S + '" class="radar" role="img" aria-label="Radar tes fisik"><g fill="none" stroke="#22345a">' + [1, 0.67, 0.33].map(f => '<polygon points="' + ring(f) + '"/>').join("") + axes + '</g><polygon points="' + poly(tgt) + '" fill="none" stroke="#d4ee3a" stroke-dasharray="5 4"/><polygon points="' + poly(vals) + '" fill="rgba(47,196,178,.3)" stroke="#2fc4b2" stroke-width="2"/>' + lab + '</svg>';
   }
+
+  // Radar Perbandingan 2 Atlet (ala Football Manager)
+  function radarCompare(vals1, vals2, labels, S = 320){
+    const c = S / 2, R = S * 0.28, n = vals1.length, ang = i => -Math.PI / 2 + i * 2 * Math.PI / n;
+    const pt = (i, f) => [c + Math.cos(ang(i)) * R * f, c + Math.sin(ang(i)) * R * f].map(x => x.toFixed(1)).join(",");
+    const poly = a => a.map((f, i) => pt(i, f)).join(" ");
+    const ring = f => poly(Array(n).fill(f));
+    const axes = vals1.map((_, i) => { const [x, y] = pt(i, 1).split(","); return '<line x1="' + c + '" y1="' + c + '" x2="' + x + '" y2="' + y + '"/>'; }).join("");
+    const lab = labels.map((t, i) => { const x = c + Math.cos(ang(i)) * (R + 16), y = c + Math.sin(ang(i)) * (R + 16); return '<text x="' + x.toFixed(1) + '" y="' + (y + 4).toFixed(1) + '" font-size="11" fill="#8fa0c0" text-anchor="' + (Math.abs(x - c) < 4 ? "middle" : x > c ? "start" : "end") + '">' + t + '</text>'; }).join("");
+    return '<svg viewBox="0 0 ' + S + ' ' + S + '" class="radar" style="max-width:360px;margin:0 auto;display:block" role="img" aria-label="Radar perbandingan atlet">' +
+      '<g fill="none" stroke="#22345a">' + [1, 0.75, 0.5, 0.25].map(f => '<polygon points="' + ring(f) + '"/>').join("") + axes + '</g>' +
+      '<polygon points="' + poly(vals1) + '" fill="rgba(47,196,178,.28)" stroke="#2fc4b2" stroke-width="2.5"/>' +
+      '<polygon points="' + poly(vals2) + '" fill="rgba(255,122,61,.28)" stroke="#ff7a3d" stroke-width="2.5"/>' +
+      lab + '</svg>';
+  }
+
   function line(vals, labels, tgt, w = 320, h = 130){
     const lo = Math.min(...vals, tgt ?? Infinity) - 0.2 * (Math.max(...vals) - Math.min(...vals) || 1), hi = Math.max(...vals, tgt ?? -Infinity) + 0.2 * (Math.max(...vals) - Math.min(...vals) || 1);
     const X = i => 24 + i * (w - 40) / Math.max(1, vals.length - 1), Y = v => 10 + (h - 34) * (1 - (v - lo) / (hi - lo || 1));
@@ -73,7 +87,18 @@ const VC = (() => {
   }
 
   // ---------- kerangka halaman ----------
-  const NAV = [["beranda", "Beranda", "pelatih analis atlet"], ["atlet", "Atlet", "pelatih analis"], ["profil.html?id=A07", "Profil saya", "atlet"], ["tes-fisik", "Tes fisik", "pelatih analis atlet"], ["latihan", "Latihan", "pelatih analis"], ["pertandingan", "Pertandingan", "pelatih analis"], ["laporan", "Laporan", "pelatih analis atlet"], ["pengaturan", "Pengaturan", "pelatih"]];
+  const NAV = [
+    ["beranda", "Beranda", "pelatih analis atlet"], 
+    ["atlet", "Atlet", "pelatih analis"], 
+    ["perbandingan", "Perbandingan", "pelatih analis"],
+    ["profil.html?id=A07", "Profil saya", "atlet"], 
+    ["tes-fisik", "Tes fisik", "pelatih analis atlet"], 
+    ["latihan", "Latihan", "pelatih analis"], 
+    ["pertandingan", "Pertandingan", "pelatih analis"], 
+    ["laporan", "Laporan", "pelatih analis atlet"], 
+    ["pengaturan", "Pengaturan", "pelatih"]
+  ];
+
   function page(active, title, key){
     const role = store.get("role", "pelatih");
     document.title = title + " | V-Combat";
@@ -86,14 +111,14 @@ const VC = (() => {
     PAGES[key || active.split(".")[0]]($("#view"));
   }
   const kpi = (l, v, s = "") => '<div class="card kpi"><small>' + l + '</small><b>' + v + '</b> <span class="muted sm">' + s + '</span></div>';
-  const atletById = id => ATLET.find(a => a.id === id) || ATLET[6];
+  const atletById = id => ATLET.find(a => a.id === id) || ATLET[0];
 
-  // ---------- helper render avatar (mendukung foto atau fallback inisial teks) ----------
-  function renderAvatar(a, customClass = "avatar") {
+  function renderAvatar(a, borderColor = "") {
+    const borderStyle = borderColor ? 'border: 2px solid ' + borderColor + ';' : '';
     if (a.foto) {
-      return '<div class="' + customClass + '" style="overflow:hidden; padding:0;"><img src="' + a.foto + '" alt="' + a.nama + '" style="width:100%; height:100%; object-fit:cover;"></div>';
+      return '<div class="avatar" style="overflow:hidden; padding:0; ' + borderStyle + '"><img src="' + a.foto + '" alt="' + a.nama + '" style="width:100%; height:100%; object-fit:cover;"></div>';
     }
-    return '<div class="' + customClass + '">' + a.id + '</div>';
+    return '<div class="avatar" style="' + borderStyle + '">' + a.id + '</div>';
   }
 
   // ---------- halaman ----------
@@ -107,7 +132,7 @@ const VC = (() => {
         '<div class="kpis">' + kpi("Atlet aktif", A.length) + kpi("Tes bulan ini", A.length * 3) + kpi("Sesi latihan", 22, "minggu ini") + kpi("Pertandingan", 4, "dianalisis") + '</div>' +
         '<div class="g2"><div class="card"><h2>Skor tes rata-rata tim</h2>' + line([2.1, 2.3, 2.6, 2.9, 3.2], ["Jul", "Agu", "Sep", "Okt", "Nov"], 3) + '<div class="muted sm">garis putus-putus = target benchmark</div></div>' +
         '<div class="card"><h2>Perlu perhatian</h2><ul class="list">' + perlu.map(p => '<li><span class="dot" style="background:' + (p[0] ? "#ff7a3d" : "#2fc4b2") + '"></span>' + p[0] + " " + p[1] + '</li>').join("") + '</ul></div></div>' +
-        '<div class="g2"><div class="card"><h2>Akses cepat</h2><div class="row"><a class="btn pri" href="latihan.html">Latihan kamera</a><a class="btn" href="latihan.html">Analisis video</a><a class="btn" href="tes-fisik.html">Input tes fisik</a><a class="btn" href="pertandingan.html">Analisis pertandingan</a></div></div>' +
+        '<div class="g2"><div class="card"><h2>Akses cepat</h2><div class="row"><a class="btn pri" href="latihan.html">Latihan kamera</a><a class="btn" href="perbandingan.html">Bandingkan atlet</a><a class="btn" href="tes-fisik.html">Input tes fisik</a><a class="btn" href="pertandingan.html">Analisis pertandingan</a></div></div>' +
         '<div class="card"><h2>Aktivitas terbaru</h2><ul class="list"><li><span class="dot" style="background:#d4ee3a"></span>Latihan tendangan, Atlet 07 <span class="muted">2 jam lalu</span></li><li><span class="dot" style="background:#2fc4b2"></span>Tes sprint 20 m, Kelompok A <span class="muted">kemarin</span></li><li><span class="dot" style="background:#ff5a4d"></span>Analisis pertandingan, ronde 2 <span class="muted">2 hari lalu</span></li></ul></div></div>';
       el.querySelectorAll("[data-k]").forEach(b => b.onclick = () => { kat = b.dataset.k; draw(); });
     };
@@ -115,7 +140,7 @@ const VC = (() => {
   };
 
   PAGES.atlet = el => {
-    el.innerHTML = '<div class="card"><div class="row" style="margin-bottom:10px"><input id="q" placeholder="Cari nama atau ID"><select id="fk"><option value="">Semua kategori</option>' + KAT.map(k => '<option>' + k + '</option>').join("") + '</select><button class="pri" id="add" title="Belum aktif di prototipe">+ Atlet</button></div><div class="scroll"><table id="t"></table></div></div>';
+    el.innerHTML = '<div class="card"><div class="row" style="margin-bottom:10px"><input id="q" placeholder="Cari nama atau ID"><select id="fk"><option value="">Semua kategori</option>' + KAT.map(k => '<option>' + k + '</option>').join("") + '</select><a class="btn" href="perbandingan.html">Bandingkan Atlet</a><button class="pri" id="add" title="Belum aktif di prototipe">+ Atlet</button></div><div class="scroll"><table id="t"></table></div></div>';
     const draw = () => {
       const q = $("#q").value.toLowerCase(), k = $("#fk").value;
       $("#t").innerHTML = '<tr><th>Foto</th><th>ID</th><th>Nama</th><th>Usia</th><th>JK</th><th>Kategori</th><th>Tinggi</th><th>Berat</th><th>Izin wali</th></tr>' +
@@ -125,6 +150,83 @@ const VC = (() => {
         }).join("");
     };
     $("#q").oninput = $("#fk").onchange = draw; $("#add").onclick = () => alert("Tambah atlet belum aktif di prototipe."); draw();
+  };
+
+  // Halaman Perbandingan Atlet (Football Manager Style)
+  PAGES.perbandingan = el => {
+    let id1 = "A01", id2 = "A02";
+    const T6 = TES.slice(0, 6);
+
+    const draw = () => {
+      const a1 = atletById(id1), a2 = atletById(id2);
+      const vals1 = T6.map(t => skor(a1.id, t));
+      const vals2 = T6.map(t => skor(a2.id, t));
+      const imt1 = (a1.berat / Math.pow(a1.tinggi / 100, 2)).toFixed(1);
+      const imt2 = (a2.berat / Math.pow(a2.tinggi / 100, 2)).toFixed(1);
+
+      const pilihAtlet = (selId, currentId) => '<select id="' + selId + '" style="flex:1">' + 
+        ATLET.map(a => '<option value="' + a.id + '"' + (a.id === currentId ? ' selected' : '') + '>' + a.id + ' - ' + a.nama + ' (' + a.jk + ', ' + a.usia + ' th)</option>').join("") + '</select>';
+
+      // Helper penentu keunggulan angka pada tabel
+      const compareRow = (label, v1, v2, sat = "", arah = "besar") => {
+        let c1 = "", c2 = "";
+        if (v1 != null && v2 != null && v1 !== v2) {
+          const a1Wins = arah === "besar" ? v1 > v2 : v1 < v2;
+          if (a1Wins) c1 = 'color:#2fc4b2; font-weight:800;';
+          else c2 = 'color:#ff7a3d; font-weight:800;';
+        }
+        return '<tr>' +
+          '<td style="text-align:right; ' + c1 + '">' + (v1 ?? "-") + (v1 != null ? " " + sat : "") + '</td>' +
+          '<td class="muted" style="text-align:center; font-size:12px;">' + label + '</td>' +
+          '<td style="text-align:left; ' + c2 + '">' + (v2 ?? "-") + (v2 != null ? " " + sat : "") + '</td>' +
+        '</tr>';
+      };
+
+      el.innerHTML = 
+        // Header Pemilih 2 Atlet
+        '<div class="g2">' +
+          '<div class="card" style="border-top: 3px solid #2fc4b2;">' +
+            '<div class="row" style="margin-bottom:12px"><span class="dot" style="background:#2fc4b2"></span>' + pilihAtlet("selA1", id1) + '</div>' +
+            '<div class="row" style="gap:12px">' + renderAvatar(a1, "#2fc4b2") + 
+              '<div><b style="font-size:18px">' + a1.nama + '</b><div class="muted sm">' + (a1.jk === "P" ? "Putri" : "Putra") + ' · ' + a1.usia + ' tahun · ' + a1.kat.join(", ") + '</div></div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="card" style="border-top: 3px solid #ff7a3d;">' +
+            '<div class="row" style="margin-bottom:12px"><span class="dot" style="background:#ff7a3d"></span>' + pilihAtlet("selA2", id2) + '</div>' +
+            '<div class="row" style="gap:12px">' + renderAvatar(a2, "#ff7a3d") + 
+              '<div><b style="font-size:18px">' + a2.nama + '</b><div class="muted sm">' + (a2.jk === "P" ? "Putri" : "Putra") + ' · ' + a2.usia + ' tahun · ' + a2.kat.join(", ") + '</div></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+        // Radar Overlay & Tabel Antropometri
+        '<div class="g2">' +
+          '<div class="card">' +
+            '<h2>Radar Perbandingan Atribut Fisik</h2>' +
+            radarCompare(vals1, vals2, T6.map(t => t.kel)) +
+            '<div class="row" style="justify-content:center; gap:20px; margin-top:8px; font-size:13px;">' +
+              '<span><span class="dot" style="background:#2fc4b2"></span> <b>' + a1.nama + '</b></span>' +
+              '<span><span class="dot" style="background:#ff7a3d"></span> <b>' + a2.nama + '</b></span>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="card">' +
+            '<h2>Perbandingan Head-to-Head</h2>' +
+            '<table>' +
+              '<tr><th style="text-align:right; color:#2fc4b2">' + a1.nama + '</th><th style="text-align:center">Parameter</th><th style="text-align:left; color:#ff7a3d">' + a2.nama + '</th></tr>' +
+              compareRow("Tinggi Badan", a1.tinggi, a2.tinggi, "cm", "besar") +
+              compareRow("Berat Badan", a1.berat, a2.berat, "kg", "besar") +
+              compareRow("IMT", +imt1, +imt2, "", "netral") +
+              TES.map(t => compareRow(t.nama, hasil[a1.id][t.id], hasil[a2.id][t.id], t.sat, t.arah)).join("") +
+            '</table>' +
+            '<div class="muted sm" style="margin-top:8px; text-align:center;">Angka berwarna menandakan catatan tes lebih unggul.</div>' +
+          '</div>' +
+        '</div>';
+
+      $("#selA1").onchange = e => { id1 = e.target.value; draw(); };
+      $("#selA2").onchange = e => { id2 = e.target.value; draw(); };
+    };
+    draw();
   };
 
   function ringkasan(a){
@@ -148,7 +250,7 @@ const VC = (() => {
       "Pertandingan": () => '<div class="card"><h2>Riwayat pertandingan</h2><p class="muted">Data contoh. Nanti terisi dari aplikasi 2: 12 Nov 2026, Tanding, ronde 2 dari 3, tendangan 18, pukulan 22, jatuhan 1.</p></div>'
     };
     const draw = () => {
-      el.innerHTML = '<div class="card row" style="gap:14px">' + renderAvatar(a) + '<div style="flex:1;min-width:200px"><b style="font-size:19px">' + a.nama + '</b><div class="muted">' + (a.jk === "P" ? "Putri" : "Putra") + ' · ' + a.usia + ' tahun · ' + a.kat.join(", ") + ' · Usia dini</div></div><div class="row noprint"><a class="btn pri" href="latihan.html">Latihan kamera</a><a class="btn" href="latihan.html">Analisis video</a></div></div>' +
+      el.innerHTML = '<div class="card row" style="gap:14px">' + renderAvatar(a) + '<div style="flex:1;min-width:200px"><b style="font-size:19px">' + a.nama + '</b><div class="muted">' + (a.jk === "P" ? "Putri" : "Putra") + ' · ' + a.usia + ' tahun · ' + a.kat.join(", ") + ' · Usia dini</div></div><div class="row noprint"><a class="btn" href="perbandingan.html">Bandingkan</a><a class="btn pri" href="latihan.html">Latihan kamera</a></div></div>' +
         '<div class="tabs noprint">' + tabs.map(t => '<button class="' + (t === tab ? "on" : "") + '" data-t="' + t + '">' + t + '</button>').join("") + '</div>' + body[tab]();
       el.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { tab = b.dataset.t; draw(); });
       const nb = $("#nb"); if(nb) nb.onclick = () => { const v = parseFloat($("#nv").value); if(v > 50){ riw.push(v); draw(); } };
