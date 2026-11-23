@@ -162,3 +162,45 @@ const VC = (() => {
   return { page, level, radar, store, TES, ATLET };
 })();
 if(typeof module !== "undefined") module.exports = VC;
+
+// Contoh array data atlet di dalam vcombat.js
+const daftarAtlet = [
+  {
+    id: "A001",
+    nama: "Budi Santoso",
+    cabang: "Pencak Silat",
+    kategori: "Dewasa Putra",
+    foto: "aset/foto/budi.jpg" // Path foto statis
+  },
+  {
+    id: "A002",
+    nama: "Siti Rahma",
+    cabang: "Karate",
+    kategori: "Dewasa Putri",
+    foto: "aset/foto/siti.jpg" // Path foto statis
+  }
+];
+
+// Contoh fungsi JavaScript untuk merender kartu profil atau daftar atlet
+function renderAtlet() {
+  const container = document.getElementById("container-atlet");
+  container.innerHTML = ""; // Bersihkan kontainer
+
+  daftarAtlet.forEach(atlet => {
+    // Jika foto kosong, kita bisa fallback ke inisial nama atau gambar default
+    const fotoSrc = atlet.foto ? atlet.foto : "aset/foto/default.jpg";
+
+    const htmlCard = `
+      <div class="card-atlet">
+        <div class="avatar-container">
+          <img src="${fotoSrc}" alt="Foto ${atlet.nama}" class="atlet-avatar">
+        </div>
+        <div class="atlet-info">
+          <h3>${atlet.nama}</h3>
+          <p>${atlet.cabang} - ${atlet.kategori}</p>
+        </div>
+      </div>
+    `;
+    container.innerHTML += htmlCard;
+  });
+}
